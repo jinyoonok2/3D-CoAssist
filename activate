@@ -1,0 +1,38 @@
+#!/bin/bash
+
+# Script to activate the 3d-coassist conda environment
+
+ENV_NAME="3d-coassist"
+
+# Check if conda is available
+if ! command -v conda &> /dev/null; then
+    echo "Error: conda is not available in your PATH."
+    echo "Please ensure conda is installed and initialized."
+    exit 1
+fi
+
+# Check if the environment exists
+if ! conda env list | grep -q "^$ENV_NAME "; then
+    echo "Error: Conda environment '$ENV_NAME' not found."
+    echo "Available environments:"
+    conda env list
+    exit 1
+fi
+
+# Activate the conda environment
+echo "Activating conda environment: $ENV_NAME"
+eval "$(conda shell.bash hook)"
+conda activate "$ENV_NAME"
+
+# Confirm activation
+if [ "$CONDA_DEFAULT_ENV" = "$ENV_NAME" ]; then
+    echo "Conda environment activated successfully!"
+    echo "Python: $(which python)"
+    echo "Python version: $(python --version)"
+else
+    echo "Error: Failed to activate conda environment."
+    exit 1
+fi
+
+# Start a new bash shell with the activated environment
+exec bash

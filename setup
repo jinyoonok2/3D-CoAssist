@@ -1,0 +1,119 @@
+#!/bin/bash
+
+# Setup script for 3D-CoAssist environment with Habitat-Lab
+
+set -e  # Exit on error
+
+echo "=========================================="
+echo "3D-CoAssist Environment Setup"
+echo "=========================================="
+echo ""
+
+# Check if conda is available
+if ! command -v conda &> /dev/null; then
+    echo "Error: conda is not available in your PATH."
+    echo "Please install miniconda or anaconda first."
+    exit 1
+fi
+
+# Environment name
+ENV_NAME="3d-coassist"
+
+# Check for --reset flag
+RESET_ENV=false
+if [ "$1" = "--reset" ]; then
+    RESET_ENV=true
+    echo "Reset flag detected. Will remove and reinstall everything."
+    echo ""
+fi
+
+# Check if environment already exists
+ENV_EXISTS=false
+if conda env list | grep -q "^$ENV_NAME "; then
+    ENV_EXISTS=true
+fi
+
+# Handle existing environment
+if [ "$ENV_EXISTS" = true ]; then
+    if [ "$RESET_ENV" = true ]; then
+        echo "Removing existing environment '$ENV_NAME'..."
+        conda env remove -n "$ENV_NAME" -y
+        echo ""
+    else
+        echo "Conda environment '$ENV_NAME' already exists!"
+        echo ""
+        echo "The environment is already set up. To use it, run:"
+        echo "  source ./activate"
+        echo ""
+        echo "If you want to start over and reinstall everything, run:"
+        echo "  ./setup --reset"
+        echo ""
+        exit 0
+    fi
+fi
+
+# Create conda environment
+echo ""
+echo "Step 1: Creating conda environment with Python 3.9 and CMake 3.14.0..."
+conda create -n "$ENV_NAME" python=3.9 cmake=3.14.0 -y
+
+# Activate environment
+echo ""
+echo "Step 2: Activating environment..."
+eval "$(conda shell.bash hook)"
+conda activate "$ENV_NAME"
+
+# Install habitat-sim
+echo ""
+echo "Step 3: Installing habitat-sim..."
+conda install habitat-sim -c conda-forge -c aihabitat -y
+
+# Fix pillow version compatibility
+echo ""
+echo "Step 4: Fixing pillow version for habitat-sim compatibility..."
+pip install pillow==10.4.0
+
+# Clone or check for habitat-lab repository
+echo ""
+echo "Step 5: Setting up habitat-lab repository..."
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+HABITAT_LAB_DIR="$SCRIPT_DIR/habitat-lab"
+
+if [ -d "$HABITAT_LAB_DIR" ]; then
+    echo "habitat-lab directory already exists at: $HABITAT_LAB_DIR"
+    read -p "Do you want to skip cloning and use existing directory? (Y/n): " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+        echo "Using existing habitat-lab directory..."
+    else
+        echo "Please manually remove or rename the existing habitat-lab directory first."
+        exit 1
+    fi
+else
+    echo "Cloning habitat-lab (stable branch)..."
+    git clone --branch stable https://github.com/facebookresearch/habitat-lab.git "$HABITAT_LAB_DIR"
+fi
+
+# Install habitat-lab
+echo ""
+echo "Step 6: Installing habitat-lab..."
+cd "$HABITAT_LAB_DIR"
+pip install -e habitat-lab
+
+# Install habitat-baselines
+echo ""
+echo "Step 7: Installing habitat-baselines..."
+pip install -e habitat-baselines
+
+# Installation complete
+echo ""
+echo "=========================================="
+echo "Installation Complete!"
+echo "=========================================="
+echo ""
+echo "To activate the environment, run:"
+echo "  source ./activate"
+echo ""
+echo "Or manually with conda:"
+echo "  conda activate $ENV_NAME"
+echo ""
